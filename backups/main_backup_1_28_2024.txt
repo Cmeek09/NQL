@@ -1,0 +1,84 @@
+import dotenv
+import os
+import re
+import pandas as pd
+import psycopg2.errors
+from NQL_AI_Agent.modules.db import PostgresManager
+from NQL_AI_Agent.modules import llm
+from NQL_AI_Agent.modules.charts import bar_chart  
+
+# import argparse
+
+dotenv.load_dotenv()
+
+assert os.environ.get("DATABASE_URL"), "POSTGRES_CONNECTION_URL not found in .env file"
+assert os.environ.get("OPENAI_API_KEY"), "OPENAI_API_KEY not found in .env file"
+
+DB_URL = os.environ.get("DATABASE_URL")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+POSTGRES_TABLE_DEFINITIONS_CAP_REF = "TABLE_DEFINITIONS"
+RESPONSE_FORMAT_CAP_REF = "RESPONSE_FORMAT"
+
+SQL_DELIMITER = "---------"
+
+def main():
+    while True:
+        user_input = input("Enter a prompt (type 'shut_down' to exit): ")
+
+        if user_input == 'shut_down':
+            print("Shutting down...")
+            break
+
+        prompt = f"Generate the postgres SQL query to fulfill the following request: {user_input}. "
+
+        with PostgresManager() as db:
+            db.connect_with_url(DB_URL)
+
+            table_definitions = db.get_table_definitions_for_prompt()
+
+            prompt = llm.add_cap_ref(
+                prompt,
+                f"Use these {POSTGRES_TABLE_DEFINITIONS_CAP_REF} to satisfy the database query.",
+                POSTGRES_TABLE_DEFINITIONS_CAP_REF,
+                table_definitions,
+            )
+
+            prompt = llm.add_cap_ref(
+                prompt,
+                f"\n\nRespond in this format {RESPONSE_FORMAT_CAP_REF}. Replace the text between <> with its request. I need to be able to easily parse the sql query from your response.",
+                RESPONSE_FORMAT_CAP_REF,
+                f"{SQL_DELIMITER}\n<sql query exclusively as raw text>\n{SQL_DELIMITER}"
+            )
+
+            print("\n\n-------- PROMPT --------")
+            print(prompt)
+
+            prompt_response = llm.prompt(prompt)
+
+            print("\n\n-------- PROMPT RESPONSE --------")
+            print(prompt_response)
+
+            match = re.search(f"{SQL_DELIMITER}\n(.+){SQL_DELIMITER}", prompt_response, re.DOTALL)
+            if match:
+                sql_query = match.group(1).replace('\n', ' ').strip()
+                try:
+                    result = db.run_sql(sql_query)
+
+                    print("\n\n======== AI AGENT RESPONSE ========")
+                    print(result)
+
+                    # Ask the user if they want to plot a bar chart
+                    plot_chart = input("Do you want to plot a bar chart of the result? (yes/no): ").lower()
+                    if plot_chart == 'yes':
+                        bar_chart(result)
+                except psycopg2.Error as e:
+                    print(f"\n\n======== ERROR ========")
+                    print(f"Error in SQL query: {e}")
+                    # Provide a callback response to the model with the error message
+                    llm.callback(result,f"Error in SQL query: {e}")
+            else:
+                print("Error: SQL delimiter not found in the response.")
+
+if __name__ == "__main__":
+    main()
