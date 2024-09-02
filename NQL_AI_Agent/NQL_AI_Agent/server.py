@@ -5,15 +5,6 @@ import websockets
 import json
 from NQL_AI_Agent.prompt_processor import process_prompt
 
-
-async def process_prompt(prompt):
-    # Example: Main logic to process the prompt
-    response = {
-        "status": "success",
-        "message": f"Received your prompt: {prompt}"
-    }
-    return json.dumps(response)
-
 async def handler(websocket, path):
     try:
         async for message in websocket:
