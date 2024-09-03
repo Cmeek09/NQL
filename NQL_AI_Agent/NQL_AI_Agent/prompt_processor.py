@@ -43,6 +43,7 @@ def process_prompt(prompt):
             sql_query = match.group(1).replace('\n', ' ').strip()
             result = db.run_sql(sql_query)
             return {
+                'prompt': prompt,
                 'result': result,
                 'sql': sql_query
             }

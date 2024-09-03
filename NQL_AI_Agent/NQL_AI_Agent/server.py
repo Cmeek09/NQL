@@ -5,13 +5,13 @@ import websockets
 import json
 from NQL_AI_Agent.prompt_processor import process_prompt
 
-async def process_prompt(prompt):
-    # Return a JSON object instead of a plain string
-    response = {
-        "status": "success",
-        "message": f"Received your prompt: {prompt}"
-    }
-    return json.dumps(response)
+# async def process_prompt(prompt):
+#     # Return a JSON object instead of a plain string
+#     response = {
+#         "status": "success",
+#         "message": f"Received your prompt: {prompt}"
+#     }
+#     return json.dumps(response)
 
 async def handler(websocket, path):
     try:
@@ -20,11 +20,14 @@ async def handler(websocket, path):
             data = json.loads(message)
             prompt = data.get('prompt', '')
 
-            # Process the prompt
-            response = await process_prompt(prompt)  # Await the async function
+            # Print the received prompt to the server's console
+            print(f"Server received prompt: {prompt}")
+
+            # Process the prompt (just echo it back for now)
+            result = process_prompt(prompt)
 
             # Send the result back to the client
-            await websocket.send(json.dumps(response))
+            await websocket.send(json.dumps(result))
 
     except websockets.ConnectionClosed as e:
         print(f"Connection closed: {e}")

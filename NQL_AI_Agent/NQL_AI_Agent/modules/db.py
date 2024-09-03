@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 import json
 import pandas as pd
 import psycopg2
@@ -77,9 +77,14 @@ class PostgresManager:
                 columns = [desc[0] for desc in self.cur.description]
                 res = self.cur.fetchall()
                 list_of_dicts = [dict(zip(columns, row)) for row in res]
-                df = pd.DataFrame(list_of_dicts)
-                return df
-
+                
+                # Convert date and datetime objects to strings
+                for row in list_of_dicts:
+                    for key, value in row.items():
+                        if isinstance(value, (date, datetime)):
+                            row[key] = value.isoformat()
+            
+                return list_of_dicts
             else:
                 # DDL command or fetch_result is set to False
                 return "Command executed successfully."
