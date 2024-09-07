@@ -3,6 +3,7 @@
 import asyncio
 import websockets
 import json
+from decimal import Decimal
 from NQL_AI_Agent.prompt_processor import process_prompt
 
 # async def process_prompt(prompt):
@@ -12,6 +13,15 @@ from NQL_AI_Agent.prompt_processor import process_prompt
 #         "message": f"Received your prompt: {prompt}"
 #     }
 #     return json.dumps(response)
+
+
+# Custom JSON encoder for Decimal
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)  # or str(obj) if you prefer string representation
+        return super(DecimalEncoder, self).default(obj)
+
 
 async def handler(websocket, path):
     try:
@@ -27,7 +37,7 @@ async def handler(websocket, path):
             result = process_prompt(prompt)
 
             # Send the result back to the client
-            await websocket.send(json.dumps(result))
+            await websocket.send(json.dumps(result, cls=DecimalEncoder))
 
     except websockets.ConnectionClosed as e:
         print(f"Connection closed: {e}")
